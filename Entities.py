@@ -16,7 +16,7 @@ from typing import List, Dict, Any, Tuple, Optional
 import os
 from huggingface_hub import InferenceClient
 
-TOP_K = 2  # <-- Global limit: now strictly enforced
+TOP_K = 3  # <-- Global limit: now strictly enforced
 HF_TOKEN = os.environ.get("HF_TOKEN")
 MODEL_ID = "sentence-transformers/all-mpnet-base-v2"
 
@@ -104,7 +104,10 @@ def get_entity_by_name(conn, name: str, etype: str) -> Optional[int]:
         cur.close()
 
 
-def insert_entity(conn,name: str,etype: str,provenance: Optional[str] = None) -> int:
+def insert_entity(conn,
+                  name: str,
+                  etype: str,
+                  provenance: Optional[str] = None) -> int:
     """Inserts a new entity, computing the embedding from its name."""
     cur = conn.cursor()
     try:
@@ -132,7 +135,8 @@ def insert_entity(conn,name: str,etype: str,provenance: Optional[str] = None) ->
         cur.close()
 
 
-def upsert_entity(conn, name: str, etype: Optional[str],provenance: Optional[str]) -> int:
+def upsert_entity(conn, name: str, etype: Optional[str],
+                  provenance: Optional[str]) -> int:
     """Finds or creates an entity and returns its ID."""
     used_type = etype if etype else ("PERSON_OR_ORG" if any(
         c.isalpha() for c in name) else "UNKNOWN")
@@ -172,7 +176,8 @@ def insert_relation(conn, source_id: int, target_id: int,
 # -------------------------
 # Mappings (DECENTRALIZED INSERT)
 # -------------------------
-def insert_decentralized_mapping(conn, entity_id: int, source_table_name: str,source_pk_value: int) -> int:
+def insert_decentralized_mapping(conn, entity_id: int, source_table_name: str,
+                                 source_pk_value: int) -> int:
     """
     Inserts a mapping into the table-specific mapping table (e.g., SUPPLIERS_MAPPINGS).
     """
@@ -201,7 +206,8 @@ def insert_decentralized_mapping(conn, entity_id: int, source_table_name: str,so
 # -------------------------
 # GLOBAL search (REVERTED TO TOP-K LIMIT)
 # -------------------------
-def find_top_overall(conn, tables: List[Tuple[str, str, str, str]],entity_name: str) -> List[Tuple[str, int, str, float]]:
+def find_top_overall(conn, tables: List[Tuple[str, str, str, str]],
+                     entity_name: str) -> List[Tuple[str, int, str, float]]:
     """
     Performs a global ANN search across all tables and returns the TOP_K (2)
     rows with the lowest distance (highest similarity).
@@ -220,7 +226,10 @@ def find_top_overall(conn, tables: List[Tuple[str, str, str, str]],entity_name: 
     for (table_name, pk_col, uuid_col, emb_col) in tables:
         # Uses UNION ALL to search every table simultaneously
         part = f"""
-        SELECT '{table_name}' AS table_name, {pk_col} AS pk,{pk_col} AS uuid, {emb_col} <-> :embedding AS dist
+        SELECT '{table_name}' AS table_name,
+               {pk_col} AS pk,
+               {pk_col} AS uuid, -- Note: uuid field carries the PK value for the return tuple
+               {emb_col} <-> :embedding AS dist
         FROM {table_name}
         WHERE {emb_col} IS NOT NULL 
         """ # 💥 Threshold condition removed
@@ -252,7 +261,8 @@ def find_top_overall(conn, tables: List[Tuple[str, str, str, str]],entity_name: 
             try:
                 dist = float(r[3])
             except Exception:
-                dist = float(r[3].__float__()) if hasattr(r[3],"__float__") else 0.0
+                dist = float(r[3].__float__()) if hasattr(r[3],
+                                                          "__float__") else 0.0
             results.append((table_name, pk, str(source_row_id), dist))
         return results
     finally:
@@ -276,7 +286,8 @@ def run_db_pipeline(triples_path, conn):
         unique_entities: Dict[str, Dict[str, Any]] = {}
         for t in triples:
             s, o = t["subject"], t["object"]
-            for entity_name, entity_type_key in [(s, "subject_type"),(o, "object_type")]:
+            for entity_name, entity_type_key in [(s, "subject_type"),
+                                                 (o, "object_type")]:
                 entity_type = t.get(entity_type_key)
                 # provenance = t.get("provenance")
                 provenance = "test_main.pdf"
@@ -330,7 +341,9 @@ def run_db_pipeline(triples_path, conn):
             eid = meta["entity_id"]
             try:
                 # Get the TOP K matches
-                matches = find_top_overall(conn, PG_TABLES_TO_SEARCH, entity_name=name)
+                matches = find_top_overall(conn,
+                                           PG_TABLES_TO_SEARCH,
+                                           entity_name=name)
             except Exception as exc:
                 print(
                     f"[ERROR] global ANN query failed for entity '{name}'. Rolling back. {exc}"
@@ -344,7 +357,8 @@ def run_db_pipeline(triples_path, conn):
             for table_name, pk, source_row_id, dist in matches:
                 try:
                     # Insert into the table-specific mapping table
-                    mid = insert_decentralized_mapping(conn, eid, table_name,int(source_row_id))
+                    mid = insert_decentralized_mapping(conn, eid, table_name,
+                                                       int(source_row_id))
                     print(
                         f"  -> mapped: entity {eid} -> {table_name}_MAPPINGS (Row ID={source_row_id}) dist={dist:.6f}"
                     )
@@ -367,5 +381,5 @@ def run_db_pipeline(triples_path, conn):
             pass
 
 
-def entry_point(conn,TRIPLES_JSON_PATH):
+def entry_point(conn, TRIPLES_JSON_PATH):
     run_db_pipeline(TRIPLES_JSON_PATH, conn)
