@@ -191,7 +191,7 @@ def get_neighbors_logic(conn, table_name: str, pk_value: Any, owner: str,
     try:
         source_cols = get_selectable_columns(conn, table_name, owner)
         source_results = fetch_rows_for_table(conn, table_name, pk_attr,
-                                            [pk_value], source_cols, owner)
+                                              [pk_value], source_cols, owner)
         # robustly resolve source_row_data even when pk_value types differ (str vs int)
         source_row_data = None
 
@@ -243,8 +243,8 @@ def get_neighbors_logic(conn, table_name: str, pk_value: Any, owner: str,
             e.RELATION_TYPE as relation,
             vertex_id(n) AS destination_vertex,
             CASE
-                WHEN v IS SOURCE OF e THEN 'OUTGOING'
-                ELSE 'INCOMING'
+                 WHEN v IS SOURCE OF e THEN 'OUTGOING'
+                 ELSE 'INCOMING'
             END AS edge_direction                
         )
     ) t
