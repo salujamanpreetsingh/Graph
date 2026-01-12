@@ -233,7 +233,7 @@ def api_get_neighbors(payload: Dict[str, Any]):
     try:
         # Process all nodes in parallel
         with ThreadPoolExecutor(
-                max_workers=min(10, len(input_nodes))) as executor:
+                max_workers=min(10, max(1,len(input_nodes)))) as executor:
             futures = {
                 executor.submit(process_node, node): node
                 for node in input_nodes
