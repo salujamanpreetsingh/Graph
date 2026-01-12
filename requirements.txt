@@ -4,3 +4,4 @@ oracledb
 pydantic
 requests
 huggingface-hub
+numpy
