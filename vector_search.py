@@ -99,8 +99,8 @@ def get_embedding_online(text: str):
 
 
 def run_vector_search(conn,
-                    query_string: str,
-                    threshold: float = 0.9) -> List[Dict]:
+                      query_string: str,
+                      threshold: float = 0.7) -> List[Dict]:
     # Note: For Cosine Distance, 0.0 is an exact match, 1.0 is orthogonal, 2.0 is opposite.
     # A common threshold for 'similar' content is between 0.1 and 0.4.
 
@@ -111,8 +111,8 @@ def run_vector_search(conn,
         if not embedding_list: return []
 
         if isinstance(embedding_list,
-                    list) and len(embedding_list) > 0 and isinstance(
-                        embedding_list[0], list):
+                      list) and len(embedding_list) > 0 and isinstance(
+                          embedding_list[0], list):
             embedding_list = embedding_list[0]
 
         vector_bind = array.array('f', [float(x) for x in embedding_list])
@@ -122,8 +122,8 @@ def run_vector_search(conn,
             # CHANGE: Used <=> for Cosine Distance
             part = f"""
             SELECT '{table_name}' AS table_name, 
-                {pk_col} AS pk_value, 
-                {emb_col} <=> :embedding AS dist 
+                   {pk_col} AS pk_value, 
+                   {emb_col} <=> :embedding AS dist 
             FROM {table_name} 
             WHERE {emb_col} IS NOT NULL
             """
@@ -152,8 +152,8 @@ def run_vector_search(conn,
                     str(r[0]),
                     "node_id":
                     int(r[1]) if hasattr(r[1], "imag") else str(r[1]),
-                    "cosine_distance":
-                    round(float(r[2]), 4)
+                    # "cosine_distance":
+                    # round(float(r[2]), 4)
                 })
 
         return results
